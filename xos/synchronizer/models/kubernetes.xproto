@@ -1,0 +1,11 @@
+option app_label = "kubernetes";
+option name = "kubernetes";
+
+message KubernetesService (Service){
+    option verbose_name = "Kubernetes Service";
+
+}
+
+message KubernetesServiceInstance (ServiceInstance){
+     option verbose_name = "Kubernetes Service Instance";
+}
