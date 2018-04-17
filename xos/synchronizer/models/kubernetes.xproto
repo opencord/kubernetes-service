@@ -6,6 +6,7 @@ message KubernetesService (Service){
 
 }
 
-message KubernetesServiceInstance (ServiceInstance){
+message KubernetesServiceInstance (ComputeServiceInstance){
      option verbose_name = "Kubernetes Service Instance";
+     optional string pod_ip = 1 [max_length=32, db_index = False, null = True, blank = True];
 }

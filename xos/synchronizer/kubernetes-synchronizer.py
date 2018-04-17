@@ -19,18 +19,21 @@
      This is the main entrypoint for the synchronizer. It loads the config file, and then starts the synchronizer.
 """
 
-
 #!/usr/bin/env python
 
 # Runs the standard XOS synchronizer
 
 import importlib
+import logging
 import os
 import sys
 from xosconfig import Config
 
 config_file = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + '/kubernetes_config.yaml')
 Config.init(config_file, 'synchronizer-config-schema.yaml')
+
+# prevent logging noise from k8s API calls
+logging.getLogger("kubernetes.client.rest").setLevel(logging.WARNING)
 
 synchronizer_path = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), "../../synchronizers/new_base")
