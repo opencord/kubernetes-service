@@ -22,7 +22,9 @@ FROM xosproject/xos-synchronizer-base:candidate
 COPY xos/synchronizer /opt/xos/synchronizers/kubernetes
 COPY VERSION /opt/xos/synchronizers/kubernetes/
 
-RUN pip install kubernetes==6.0.0
+COPY pip_requirements.txt /tmp/pip_requirements_kubernetes_service.txt
+RUN pip install --no-deps -r /tmp/pip_requirements_kubernetes_service.txt \
+ && pip freeze > /var/xos/pip_freeze_pip_up_kubernetes_services_`date -u +%Y%m%dT%H%M%S`
 
 ENTRYPOINT []
 

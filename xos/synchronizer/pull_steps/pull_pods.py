@@ -227,7 +227,16 @@ class KubernetesServiceInstancePullStep(PullStep):
                                                     backend_handle = self.obj_to_handle(pod),
                                                     xos_managed = False)
                 xos_pod.save()
+                xos_pods_by_name[k] = xos_pod
                 log.info("Created XOS POD %s" % xos_pod.name)
+
+            # Check to see if the ip address has changed. This can happen for pods that are managed by XOS. The IP
+            # isn't available immediately when XOS creates a pod, but shows up a bit later. So handle that case
+            # here.
+            xos_pod = xos_pods_by_name[k]
+            if (pod.status.pod_ip is not None) and (xos_pod.pod_ip != pod.status.pod_ip):
+                xos_pod.pod_ip = pod.status.pod_ip
+                xos_pod.save(update_fields = ["pod_ip"])
 
         # For each xos pod, see if there is no k8s pod. If that's the case, then the pud must have been deleted.
         for (k,xos_pod) in xos_pods_by_name.items():

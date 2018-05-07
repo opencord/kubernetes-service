@@ -63,41 +63,81 @@ class SyncKubernetesServiceInstance(SyncStep):
             raise
         return pod
 
+    def generate_pod_spec(self, o):
+        pod = kubernetes_client.V1Pod()
+        pod.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+
+        if o.slice.trust_domain:
+            pod.metadata.namespace = o.slice.trust_domain.name
+
+        if o.image.tag:
+            imageName = o.image.name + ":" + o.image.tag
+        else:
+            # TODO(smbaker): Is this case possible?
+            imageName = o.image.name
+
+        volumes = []
+        volume_mounts = []
+
+        # Attach and mount the configmaps
+        for xos_vol in o.kubernetes_config_volume_mounts.all():
+            k8s_vol = kubernetes_client.V1Volume(name=xos_vol.config.name)
+            k8s_vol.config_map = kubernetes_client.V1ConfigMapVolumeSource(name=xos_vol.config.name)
+            volumes.append(k8s_vol)
+
+            k8s_vol_m = kubernetes_client.V1VolumeMount(name=xos_vol.config.name,
+                                                        mount_path=xos_vol.mount_path,
+                                                        sub_path=xos_vol.sub_path)
+            volume_mounts.append(k8s_vol_m)
+
+        # Attach and mount the secrets
+        for xos_vol in o.kubernetes_secret_volume_mounts.all():
+            k8s_vol = kubernetes_client.V1Volume(name=xos_vol.secret.name)
+            k8s_vol.secret = kubernetes_client.V1SecretVolumeSource(secret_name=xos_vol.secret.name)
+            volumes.append(k8s_vol)
+
+            k8s_vol_m = kubernetes_client.V1VolumeMount(name=xos_vol.secret.name,
+                                                        mount_path=xos_vol.mount_path,
+                                                        sub_path=xos_vol.sub_path)
+            volume_mounts.append(k8s_vol_m)
+
+        container = kubernetes_client.V1Container(name=o.name,
+                                                  image=imageName,
+                                                  volume_mounts=volume_mounts)
+
+        spec = kubernetes_client.V1PodSpec(containers=[container], volumes=volumes)
+        pod.spec = spec
+
+        if o.slice.principal:
+            pod.spec.service_account = o.slice.principal.name
+
+        return pod
+
     def sync_record(self, o):
         if o.xos_managed:
             if (not o.slice) or (not o.slice.trust_domain):
                 raise Exception("No trust domain for service instance", o=o)
 
             if (not o.name):
-                raise Exception("No name for service instance", o=o)
+                raise Exception("No name for service instance")
 
             pod = self.get_pod(o)
             if not pod:
-                # make a pod!
-                pod = kubernetes_client.V1Pod()
-                pod.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
-
-                if o.slice.trust_domain:
-                    pod.metadata.namespace = o.slice.trust_domain.name
-
-                if o.image.tag:
-                    imageName = o.image.name + ":" + o.image.tag
-                else:
-                    # TODO(smbaker): Is this case possible?
-                    imageName = o.image.name
-
-                container=kubernetes_client.V1Container(name=o.name,
-                                                        image=imageName)
-
-                spec = kubernetes_client.V1PodSpec(containers=[container])
-                pod.spec = spec
-
-                if o.slice.principal:
-                    pod.spec.service_account = o.slice.principal.name
+                pod = self.generate_pod_spec(o)
 
                 log.info("Creating pod", o=o, pod=pod)
 
                 pod = self.v1.create_namespaced_pod(o.slice.trust_domain.name, pod)
+            else:
+                log.info("Replacing pod", o=o, pod=pod)
+
+                # TODO: apply changes, perhaps by calling self.generate_pod_spec() and copying in the differences,
+                # to accomodate new volumes that might have been attached, or other changes.
+
+                # If we don't apply any changes to the pod, it's still the case that Kubernetes will pull in new
+                # mounts of existing configmaps during the replace operation, if the configmap contents have changed.
+
+                pod = self.v1.replace_namespaced_pod(o.name, o.slice.trust_domain.name, pod)
 
             if (not o.backend_handle):
                 o.backend_handle = pod.metadata.self_link
