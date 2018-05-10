@@ -44,6 +44,7 @@ class KubernetesServiceInstancePullStep(PullStep):
         kubernetes_config.load_incluster_config()
         self.v1core = kubernetes_client.CoreV1Api()
         self.v1apps = kubernetes_client.AppsV1Api()
+        self.v1batch = kubernetes_client.BatchV1Api()
 
     def obj_to_handle(self, obj):
         """ Convert a Kubernetes resource into a handle that we can use to uniquely identify the object within
@@ -61,6 +62,8 @@ class KubernetesServiceInstancePullStep(PullStep):
             resource = self.v1apps.read_namespaced_daemon_set(name, trust_domain.name)
         elif kind == "Deployment":
             resource = self.v1apps.read_namespaced_deployment(name, trust_domain.name)
+        elif kind == "Job":
+            resource = self.v1batch.read_namespaced_job(name, trust_domain.name)
         else:
             resource = None
         return resource
@@ -84,6 +87,9 @@ class KubernetesServiceInstancePullStep(PullStep):
             if not getattr(owner_reference, "controller", False):
                 continue
             owner = self.read_obj_kind(owner_reference.kind, owner_reference.name, trust_domain)
+            if not owner:
+                log.warning("failed to fetch owner", owner_reference=owner_reference)
+                continue
             controller = self.get_controller_from_obj(owner, trust_domain, depth+1)
             if controller:
                 return controller
