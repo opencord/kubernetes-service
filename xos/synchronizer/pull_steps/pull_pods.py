@@ -57,7 +57,7 @@ class KubernetesServiceInstancePullStep(PullStep):
         if kind == "ReplicaSet":
             resource = self.v1apps.read_namespaced_replica_set(name, trust_domain.name)
         elif kind == "StatefulSet":
-            resource = self.v1apps.read_namespaced_statefule_set(name, trust_domain.name)
+            resource = self.v1apps.read_namespaced_stateful_set(name, trust_domain.name)
         elif kind == "DaemonSet":
             resource = self.v1apps.read_namespaced_daemon_set(name, trust_domain.name)
         elif kind == "Deployment":
@@ -211,38 +211,41 @@ class KubernetesServiceInstancePullStep(PullStep):
 
         # For each k8s pod, see if there is an xos pod. If there is not, then create the xos pod.
         for (k,pod) in k8s_pods_by_name.items():
-            if not k in xos_pods_by_name:
-                trust_domain = self.get_trustdomain_from_pod(pod, owner_service=kubernetes_service)
-                if not trust_domain:
-                    log.warning("Unable to determine trust_domain for %s" % k)
-                    continue
+            try:
+                if not k in xos_pods_by_name:
+                    trust_domain = self.get_trustdomain_from_pod(pod, owner_service=kubernetes_service)
+                    if not trust_domain:
+                        log.warning("Unable to determine trust_domain for %s" % k)
+                        continue
 
-                principal = self.get_principal_from_pod(pod, trust_domain)
-                slice = self.get_slice_from_pod(pod, trust_domain=trust_domain, principal=principal)
-                image = self.get_image_from_pod(pod)
+                    principal = self.get_principal_from_pod(pod, trust_domain)
+                    slice = self.get_slice_from_pod(pod, trust_domain=trust_domain, principal=principal)
+                    image = self.get_image_from_pod(pod)
 
-                if not slice:
-                    log.warning("Unable to determine slice for %s" % k)
-                    continue
+                    if not slice:
+                        log.warning("Unable to determine slice for %s" % k)
+                        continue
 
-                xos_pod = KubernetesServiceInstance(name=k,
-                                                    pod_ip = pod.status.pod_ip,
-                                                    owner = kubernetes_service,
-                                                    slice = slice,
-                                                    image = image,
-                                                    backend_handle = self.obj_to_handle(pod),
-                                                    xos_managed = False)
-                xos_pod.save()
-                xos_pods_by_name[k] = xos_pod
-                log.info("Created XOS POD %s" % xos_pod.name)
+                    xos_pod = KubernetesServiceInstance(name=k,
+                                                        pod_ip = pod.status.pod_ip,
+                                                        owner = kubernetes_service,
+                                                        slice = slice,
+                                                        image = image,
+                                                        backend_handle = self.obj_to_handle(pod),
+                                                        xos_managed = False)
+                    xos_pod.save()
+                    xos_pods_by_name[k] = xos_pod
+                    log.info("Created XOS POD %s" % xos_pod.name)
 
-            # Check to see if the ip address has changed. This can happen for pods that are managed by XOS. The IP
-            # isn't available immediately when XOS creates a pod, but shows up a bit later. So handle that case
-            # here.
-            xos_pod = xos_pods_by_name[k]
-            if (pod.status.pod_ip is not None) and (xos_pod.pod_ip != pod.status.pod_ip):
-                xos_pod.pod_ip = pod.status.pod_ip
-                xos_pod.save(update_fields = ["pod_ip"])
+                # Check to see if the ip address has changed. This can happen for pods that are managed by XOS. The IP
+                # isn't available immediately when XOS creates a pod, but shows up a bit later. So handle that case
+                # here.
+                xos_pod = xos_pods_by_name[k]
+                if (pod.status.pod_ip is not None) and (xos_pod.pod_ip != pod.status.pod_ip):
+                    xos_pod.pod_ip = pod.status.pod_ip
+                    xos_pod.save(update_fields = ["pod_ip"])
+            except:
+                log.exception("Failed to process k8s pod", k=k, pod=pod)
 
         # For each xos pod, see if there is no k8s pod. If that's the case, then the pud must have been deleted.
         for (k,xos_pod) in xos_pods_by_name.items():
