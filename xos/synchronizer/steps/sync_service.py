@@ -26,9 +26,6 @@ from synchronizers.new_base.modelaccessor import Service
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes.client.rest import ApiException
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class SyncService(SyncStep):
@@ -45,8 +42,15 @@ class SyncService(SyncStep):
 
     def __init__(self, *args, **kwargs):
         super(SyncService, self).__init__(*args, **kwargs)
+        self.init_kubernetes_client()
+
+    def init_kubernetes_client(self):
+        from kubernetes.client.rest import ApiException
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
         kubernetes_config.load_incluster_config()
-        self.v1 = kubernetes_client.CoreV1Api()
+        self.kubernetes_client = kubernetes_client
+        self.v1core = kubernetes_client.CoreV1Api()
+        self.ApiException = ApiException
 
     def fetch_pending(self, deletion=False):
         """ Filter the set of pending objects.
@@ -95,8 +99,8 @@ class SyncService(SyncStep):
             If no Kubernetes service exists, return None
         """
         try:
-            k8s_service = self.v1.read_namespaced_service(o.name, trust_domain.name)
-        except ApiException, e:
+            k8s_service = self.v1core.read_namespaced_service(o.name, trust_domain.name)
+        except self.ApiException, e:
             if e.status == 404:
                 return None
             raise
@@ -107,22 +111,26 @@ class SyncService(SyncStep):
         k8s_service = self.get_service(o,trust_domain)
 
         if not k8s_service:
-            k8s_service = kubernetes_client.V1Service()
-            k8s_service.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+            k8s_service = self.kubernetes_client.V1Service()
+            k8s_service.metadata = self.kubernetes_client.V1ObjectMeta(name=o.name)
 
             ports=[]
             for service_port in o.serviceports.all():
-                port=kubernetes_client.V1ServicePort(name = service_port.name,
+                port=self.kubernetes_client.V1ServicePort(name = service_port.name,
                                                   node_port = service_port.external_port,
                                                   port = service_port.internal_port,
                                                   target_port = service_port.internal_port,
                                                   protocol = service_port.protocol)
                 ports.append(port)
 
-            k8s_service.spec = kubernetes_client.V1ServiceSpec(ports=ports,
+            k8s_service.spec = self.kubernetes_client.V1ServiceSpec(ports=ports,
                                                                type="NodePort")
 
-            self.v1.create_namespaced_service(trust_domain.name, k8s_service)
+            k8s_service = self.v1core.create_namespaced_service(trust_domain.name, k8s_service)
+
+        if (not o.backend_handle):
+            o.backend_handle = k8s_service.metadata.self_link
+            o.save(update_fields=["backend_handle"])
 
     def delete_record(self, o):
         # TODO(smbaker): Implement delete step

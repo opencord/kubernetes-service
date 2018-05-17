@@ -29,9 +29,6 @@ from synchronizers.new_base.modelaccessor import KubernetesServiceInstance
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes.client.rest import ApiException
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class SyncKubernetesServiceInstance(SyncStep):
@@ -48,24 +45,31 @@ class SyncKubernetesServiceInstance(SyncStep):
 
     def __init__(self, *args, **kwargs):
         super(SyncKubernetesServiceInstance, self).__init__(*args, **kwargs)
+        self.init_kubernetes_client()
+
+    def init_kubernetes_client(self):
+        from kubernetes.client.rest import ApiException
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
         kubernetes_config.load_incluster_config()
-        self.v1 = kubernetes_client.CoreV1Api()
+        self.kubernetes_client = kubernetes_client
+        self.v1core = kubernetes_client.CoreV1Api()
+        self.ApiException = ApiException
 
     def get_pod(self, o):
         """ Given a KubernetesServiceInstance, read the pod from Kubernetes.
             Return None if the pod does not exist.
         """
         try:
-            pod = self.v1.read_namespaced_pod(o.name, o.slice.trust_domain.name)
-        except ApiException, e:
+            pod = self.v1core.read_namespaced_pod(o.name, o.slice.trust_domain.name)
+        except self.ApiException, e:
             if e.status == 404:
                 return None
             raise
         return pod
 
     def generate_pod_spec(self, o):
-        pod = kubernetes_client.V1Pod()
-        pod.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+        pod = self.kubernetes_client.V1Pod()
+        pod.metadata = self.kubernetes_client.V1ObjectMeta(name=o.name)
 
         if o.slice.trust_domain:
             pod.metadata.namespace = o.slice.trust_domain.name
@@ -81,31 +85,31 @@ class SyncKubernetesServiceInstance(SyncStep):
 
         # Attach and mount the configmaps
         for xos_vol in o.kubernetes_config_volume_mounts.all():
-            k8s_vol = kubernetes_client.V1Volume(name=xos_vol.config.name)
-            k8s_vol.config_map = kubernetes_client.V1ConfigMapVolumeSource(name=xos_vol.config.name)
+            k8s_vol = self.kubernetes_client.V1Volume(name=xos_vol.config.name)
+            k8s_vol.config_map = self.kubernetes_client.V1ConfigMapVolumeSource(name=xos_vol.config.name)
             volumes.append(k8s_vol)
 
-            k8s_vol_m = kubernetes_client.V1VolumeMount(name=xos_vol.config.name,
+            k8s_vol_m = self.kubernetes_client.V1VolumeMount(name=xos_vol.config.name,
                                                         mount_path=xos_vol.mount_path,
                                                         sub_path=xos_vol.sub_path)
             volume_mounts.append(k8s_vol_m)
 
         # Attach and mount the secrets
         for xos_vol in o.kubernetes_secret_volume_mounts.all():
-            k8s_vol = kubernetes_client.V1Volume(name=xos_vol.secret.name)
-            k8s_vol.secret = kubernetes_client.V1SecretVolumeSource(secret_name=xos_vol.secret.name)
+            k8s_vol = self.kubernetes_client.V1Volume(name=xos_vol.secret.name)
+            k8s_vol.secret = self.kubernetes_client.V1SecretVolumeSource(secret_name=xos_vol.secret.name)
             volumes.append(k8s_vol)
 
-            k8s_vol_m = kubernetes_client.V1VolumeMount(name=xos_vol.secret.name,
+            k8s_vol_m = self.kubernetes_client.V1VolumeMount(name=xos_vol.secret.name,
                                                         mount_path=xos_vol.mount_path,
                                                         sub_path=xos_vol.sub_path)
             volume_mounts.append(k8s_vol_m)
 
-        container = kubernetes_client.V1Container(name=o.name,
+        container = self.kubernetes_client.V1Container(name=o.name,
                                                   image=imageName,
                                                   volume_mounts=volume_mounts)
 
-        spec = kubernetes_client.V1PodSpec(containers=[container], volumes=volumes)
+        spec = self.kubernetes_client.V1PodSpec(containers=[container], volumes=volumes)
         pod.spec = spec
 
         if o.slice.principal:
@@ -127,7 +131,7 @@ class SyncKubernetesServiceInstance(SyncStep):
 
                 log.info("Creating pod", o=o, pod=pod)
 
-                pod = self.v1.create_namespaced_pod(o.slice.trust_domain.name, pod)
+                pod = self.v1core.create_namespaced_pod(o.slice.trust_domain.name, pod)
             else:
                 log.info("Replacing pod", o=o, pod=pod)
 
@@ -137,7 +141,7 @@ class SyncKubernetesServiceInstance(SyncStep):
                 # If we don't apply any changes to the pod, it's still the case that Kubernetes will pull in new
                 # mounts of existing configmaps during the replace operation, if the configmap contents have changed.
 
-                pod = self.v1.replace_namespaced_pod(o.name, o.slice.trust_domain.name, pod)
+                pod = self.v1core.replace_namespaced_pod(o.name, o.slice.trust_domain.name, pod)
 
             if (not o.backend_handle):
                 o.backend_handle = pod.metadata.self_link

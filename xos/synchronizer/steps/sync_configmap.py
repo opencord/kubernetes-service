@@ -26,9 +26,6 @@ from synchronizers.new_base.modelaccessor import KubernetesConfigMap
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes.client.rest import ApiException
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class SyncKubernetesConfigMap(SyncStep):
@@ -45,16 +42,23 @@ class SyncKubernetesConfigMap(SyncStep):
 
     def __init__(self, *args, **kwargs):
         super(SyncKubernetesConfigMap, self).__init__(*args, **kwargs)
+        self.init_kubernetes_client()
+
+    def init_kubernetes_client(self):
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
+        from kubernetes.client.rest import ApiException
         kubernetes_config.load_incluster_config()
-        self.v1 = kubernetes_client.CoreV1Api()
+        self.kubernetes_client = kubernetes_client
+        self.v1core = kubernetes_client.CoreV1Api()
+        self.ApiException = ApiException
 
     def get_config_map(self, o):
         """ Given an XOS KubernetesConfigMap object, read the corresponding ConfigMap from Kubernetes.
             return None if no ConfigMap exists.
         """
         try:
-            config_map = self.v1.read_namespaced_config_map(o.name, o.trust_domain.name)
-        except ApiException, e:
+            config_map = self.v1core.read_namespaced_config_map(o.name, o.trust_domain.name)
+        except self.ApiException, e:
             if e.status == 404:
                 return None
             raise
@@ -63,14 +67,14 @@ class SyncKubernetesConfigMap(SyncStep):
     def sync_record(self, o):
             config_map = self.get_config_map(o)
             if not config_map:
-                config_map = kubernetes_client.V1ConfigMap()
+                config_map = self.kubernetes_client.V1ConfigMap()
                 config_map.data = json.loads(o.data)
-                config_map.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+                config_map.metadata = self.kubernetes_client.V1ObjectMeta(name=o.name)
 
-                config_map = self.v1.create_namespaced_config_map(o.trust_domain.name, config_map)
+                config_map = self.v1core.create_namespaced_config_map(o.trust_domain.name, config_map)
             else:
                 config_map.data = json.loads(o.data)
-                self.v1.patch_namespaced_config_map(o.name, o.trust_domain.name, config_map)
+                self.v1core.patch_namespaced_config_map(o.name, o.trust_domain.name, config_map)
 
             if (not o.backend_handle):
                 o.backend_handle = config_map.metadata.self_link

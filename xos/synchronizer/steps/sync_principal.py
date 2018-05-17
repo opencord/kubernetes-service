@@ -25,9 +25,6 @@ from synchronizers.new_base.modelaccessor import Principal
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes.client.rest import ApiException
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class SyncPrincipal(SyncStep):
@@ -44,16 +41,23 @@ class SyncPrincipal(SyncStep):
 
     def __init__(self, *args, **kwargs):
         super(SyncPrincipal, self).__init__(*args, **kwargs)
+        self.init_kubernetes_client()
+
+    def init_kubernetes_client(self):
+        from kubernetes.client.rest import ApiException
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
         kubernetes_config.load_incluster_config()
-        self.v1 = kubernetes_client.CoreV1Api()
+        self.kubernetes_client = kubernetes_client
+        self.v1core = kubernetes_client.CoreV1Api()
+        self.ApiException = ApiException
 
     def get_service_account(self, o):
         """ Given an XOS Principal object, read the corresponding ServiceAccount from Kubernetes.
             return None if no ServiceAccount exists.
         """
         try:
-            service_account = self.v1.read_namespaced_service_account(o.name, o.trust_domain.name)
-        except ApiException, e:
+            service_account = self.v1core.read_namespaced_service_account(o.name, o.trust_domain.name)
+        except self.ApiException, e:
             if e.status == 404:
                 return None
             raise
@@ -79,10 +83,10 @@ class SyncPrincipal(SyncStep):
     def sync_record(self, o):
             service_account = self.get_service_account(o)
             if not service_account:
-                service_account = kubernetes_client.V1ServiceAccount()
-                service_account.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+                service_account = self.kubernetes_client.V1ServiceAccount()
+                service_account.metadata = self.kubernetes_client.V1ObjectMeta(name=o.name)
 
-                service_account = self.v1.create_namespaced_service_account(o.trust_domain.name, service_account)
+                service_account = self.v1core.create_namespaced_service_account(o.trust_domain.name, service_account)
 
             if (not o.backend_handle):
                 o.backend_handle = service_account.metadata.self_link

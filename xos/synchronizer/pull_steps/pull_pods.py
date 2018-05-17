@@ -25,8 +25,6 @@ from synchronizers.new_base.modelaccessor import KubernetesServiceInstance, Kube
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class KubernetesServiceInstancePullStep(PullStep):
@@ -40,7 +38,10 @@ class KubernetesServiceInstancePullStep(PullStep):
 
     def __init__(self):
         super(KubernetesServiceInstancePullStep, self).__init__(observed_model=KubernetesServiceInstance)
+        self.init_kubernetes_client()
 
+    def init_kubernetes_client(self):
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
         kubernetes_config.load_incluster_config()
         self.v1core = kubernetes_client.CoreV1Api()
         self.v1apps = kubernetes_client.AppsV1Api()

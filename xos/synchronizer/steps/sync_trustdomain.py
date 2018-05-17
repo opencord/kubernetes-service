@@ -25,9 +25,6 @@ from synchronizers.new_base.modelaccessor import TrustDomain
 from xosconfig import Config
 from multistructlog import create_logger
 
-from kubernetes.client.rest import ApiException
-from kubernetes import client as kubernetes_client, config as kubernetes_config
-
 log = create_logger(Config().get('logging'))
 
 class SyncTrustDomain(SyncStep):
@@ -44,8 +41,15 @@ class SyncTrustDomain(SyncStep):
 
     def __init__(self, *args, **kwargs):
         super(SyncTrustDomain, self).__init__(*args, **kwargs)
+        self.init_kubernetes_client()
+
+    def init_kubernetes_client(self):
+        from kubernetes.client.rest import ApiException
+        from kubernetes import client as kubernetes_client, config as kubernetes_config
         kubernetes_config.load_incluster_config()
-        self.v1 = kubernetes_client.CoreV1Api()
+        self.kubernetes_client = kubernetes_client
+        self.v1core = kubernetes_client.CoreV1Api()
+        self.ApiException = ApiException
 
     def fetch_pending(self, deleted):
         """ Figure out which TrustDomains are interesting to the K8s synchronizer. It's necessary to filter as we're
@@ -64,8 +68,8 @@ class SyncTrustDomain(SyncStep):
             Return None if no namespace exists.
         """
         try:
-            ns = self.v1.read_namespace(o.name)
-        except ApiException, e:
+            ns = self.v1core.read_namespace(o.name)
+        except self.ApiException, e:
             if e.status == 404:
                 return None
             raise
@@ -74,11 +78,11 @@ class SyncTrustDomain(SyncStep):
     def sync_record(self, o):
             ns = self.get_namespace(o)
             if not ns:
-                ns = kubernetes_client.V1Namespace()
-                ns.metadata = kubernetes_client.V1ObjectMeta(name=o.name)
+                ns = self.kubernetes_client.V1Namespace()
+                ns.metadata = self.kubernetes_client.V1ObjectMeta(name=o.name)
 
                 log.info("creating namespace %s" % o.name)
-                ns=self.v1.create_namespace(ns)
+                ns=self.v1core.create_namespace(ns)
 
             if (not o.backend_handle):
                 o.backend_handle = ns.metadata.self_link
