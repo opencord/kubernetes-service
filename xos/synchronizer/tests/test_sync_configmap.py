@@ -118,6 +118,24 @@ class TestSyncConfigmap(unittest.TestCase):
 
             self.assertEqual(configmap.backend_handle, "1234")
 
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            data = {"foo": "bar"}
+            configmap = KubernetesConfigMap(trust_domain=self.trust_domain, name="test-configmap", data=json.dumps(data))
+
+            orig_map = MagicMock()
+            orig_map.data = {"foo": "not_bar"}
+            orig_map.metadata.self_link = "1234"
+
+            step = self.step_class()
+            step.v1core.read_namespaced_config_map.return_value = orig_map
+
+            step.delete_record(configmap)
+
+            step.v1core.delete_namespaced_config_map.assert_called_with("test-configmap", self.trust_domain.name, ANY)
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -118,6 +118,22 @@ class TestSyncSecret(unittest.TestCase):
 
             self.assertEqual(xos_secret.backend_handle, "1234")
 
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            data = {"foo": "bar"}
+            xos_secret = KubernetesSecret(trust_domain=self.trust_domain, name="test-secret", data=json.dumps(data))
+
+            orig_secret = MagicMock()
+            orig_secret.data = {"foo": "not_bar"}
+            orig_secret.metadata.self_link = "1234"
+
+            step = self.step_class()
+            step.v1core.read_namespaced_secret.return_value = orig_secret
+
+            step.delete_record(xos_secret)
+
+            step.v1core.delete_namespaced_secret.assert_called_with("test-secret", self.trust_domain.name, ANY)
+
 
 if __name__ == '__main__':
     unittest.main()

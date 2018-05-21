@@ -147,7 +147,13 @@ class SyncKubernetesServiceInstance(SyncStep):
                 o.backend_handle = pod.metadata.self_link
                 o.save(update_fields=["backend_handle"])
 
-    def delete_record(self, port):
-        # TODO(smbaker): Implement delete step
-        pass
+    def delete_record(self, o):
+        secret = self.get_pod(o)
+        if not secret:
+            log.info("Kubernetes pod does not exist; Nothing to delete.", o=o)
+            return
+        delete_options = self.kubernetes_client.V1DeleteOptions()
+        self.v1core.delete_namespaced_pod(o.name, o.slice.trust_domain.name, delete_options)
+        log.info("Deleted pod from kubernetes", handle=o.backend_handle)
+
 

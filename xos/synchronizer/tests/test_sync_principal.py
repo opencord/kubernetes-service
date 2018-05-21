@@ -88,5 +88,17 @@ class TestSyncPrincipal(unittest.TestCase):
             step.v1core.create_namespaced_service_account.assert_called()
             self.assertEqual(xos_principal.backend_handle, "1234")
 
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            xos_principal = Principal(name="test-principal", trust_domain=self.trust_domain)
+
+            step = self.step_class()
+            k8s_sa = MagicMock()
+            step.v1core.read_namespaced_service_account.return_value = k8s_sa
+
+            step.delete_record(xos_principal)
+
+            step.v1core.delete_namespaced_service_account.assert_called_with("test-principal", self.trust_domain.name, ANY)
+
 if __name__ == '__main__':
     unittest.main()

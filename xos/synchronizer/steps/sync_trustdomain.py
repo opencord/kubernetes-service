@@ -88,7 +88,12 @@ class SyncTrustDomain(SyncStep):
                 o.backend_handle = ns.metadata.self_link
                 o.save(update_fields=["backend_handle"])
 
-    def delete_record(self, port):
-        # TODO(smbaker): Implement delete step
-        pass
+    def delete_record(self, o):
+        namespace = self.get_namespace(o)
+        if not namespace:
+            log.info("Kubernetes trust domain does not exist; Nothing to delete.", o=o)
+            return
+        delete_options = self.kubernetes_client.V1DeleteOptions()
+        self.v1core.delete_namespace(o.name, delete_options)
+        log.info("Deleted trust domain from kubernetes", handle=o.backend_handle)
 

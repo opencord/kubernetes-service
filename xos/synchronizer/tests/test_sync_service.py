@@ -60,7 +60,7 @@ class TestSyncService(unittest.TestCase):
             service = MagicMock()
             step.v1core.read_namespaced_service.return_value = service
 
-            result = step.get_service(xos_service, self.trust_domain)
+            result = step.get_service(xos_service, self.trust_domain.name)
 
             self.assertEqual(result, service)
             step.v1core.read_namespaced_service.assert_called_with("test-service", "test-trust")
@@ -74,7 +74,7 @@ class TestSyncService(unittest.TestCase):
             step = self.step_class()
             step.v1core.read_namespaced_service.side_effect = step.ApiException(status=404)
 
-            result = step.get_service(xos_service, self.trust_domain)
+            result = step.get_service(xos_service, self.trust_domain.name)
 
             self.assertEqual(result, None)
 
@@ -99,6 +99,25 @@ class TestSyncService(unittest.TestCase):
 
             step.v1core.create_namespaced_service.assert_called()
             self.assertEqual(xos_service.backend_handle, "1234")
+
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            xos_service = Service(name="test-service")
+            xos_slice = Slice(service=xos_service, trust_domain=self.trust_domain)
+            xos_service.slices = self.MockObjectList([xos_slice])
+
+            xos_serviceport = ServicePort(service=xos_service, name="web", external_port=123, internal_port=345,
+                                          protocol="TCP")
+            xos_service.serviceports=self.MockObjectList([xos_serviceport])
+
+            step = self.step_class()
+            k8s_service = MagicMock()
+            step.v1core.read_namespaced_service.return_value = k8s_service
+            step.v1core.delete_namespaced_service.return_value = None
+
+            step.delete_record(xos_service)
+
+            step.v1core.delete_namespaced_service.assert_called_with("test-service", self.trust_domain.name, ANY)
 
 if __name__ == '__main__':
     unittest.main()

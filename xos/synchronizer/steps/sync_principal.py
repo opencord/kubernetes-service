@@ -92,7 +92,11 @@ class SyncPrincipal(SyncStep):
                 o.backend_handle = service_account.metadata.self_link
                 o.save(update_fields=["backend_handle"])
 
-    def delete_record(self, port):
-        # TODO(smbaker): Implement delete step
-        pass
-
+    def delete_record(self, o):
+        principal = self.get_service_account(o)
+        if not principal:
+            log.info("Kubernetes service account does not exist; Nothing to delete.", o=o)
+            return
+        delete_options = self.kubernetes_client.V1DeleteOptions()
+        self.v1core.delete_namespaced_service_account(o.name, o.trust_domain.name, delete_options)
+        log.info("Deleted Principal from kubernetes", handle=o.backend_handle)

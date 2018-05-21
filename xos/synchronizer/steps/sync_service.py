@@ -94,12 +94,12 @@ class SyncService(SyncStep):
 
         return trust_domain
 
-    def get_service(self, o, trust_domain):
+    def get_service(self, o, trust_domain_name):
         """ Given an XOS Service, read the associated Service from Kubernetes.
             If no Kubernetes service exists, return None
         """
         try:
-            k8s_service = self.v1core.read_namespaced_service(o.name, trust_domain.name)
+            k8s_service = self.v1core.read_namespaced_service(o.name, trust_domain_name)
         except self.ApiException, e:
             if e.status == 404:
                 return None
@@ -108,7 +108,7 @@ class SyncService(SyncStep):
 
     def sync_record(self, o):
         trust_domain = self.get_trust_domain(o)
-        k8s_service = self.get_service(o,trust_domain)
+        k8s_service = self.get_service(o,trust_domain.name)
 
         if not k8s_service:
             k8s_service = self.kubernetes_client.V1Service()
@@ -133,6 +133,25 @@ class SyncService(SyncStep):
             o.save(update_fields=["backend_handle"])
 
     def delete_record(self, o):
-        # TODO(smbaker): Implement delete step
-        pass
+        trust_domain_name = None
+        trust_domain = self.get_trust_domain(o)
+        if trust_domain:
+            trust_domain_name = trust_domain.name
+        else:
+            # rely on backend_handle being structured like this one,
+            #     /api/v1/namespaces/service1-trust/services/service1
+            if (o.backend_handle):
+                parts = o.backend_handle.split("/")
+                if len(parts)>3:
+                    trust_domain_name = parts[-3]
 
+        if not trust_domain_name:
+            raise Exception("Can't delete service %s because there is no trust domain" % o.name)
+
+        k8s_service = self.get_service(o, trust_domain_name)
+        if not k8s_service:
+            log.info("Kubernetes service does not exist; Nothing to delete.", o=o)
+            return
+        delete_options = self.kubernetes_client.V1DeleteOptions()
+        self.v1core.delete_namespaced_service(o.name, trust_domain_name, delete_options)
+        log.info("Deleted service from kubernetes", handle=o.backend_handle)

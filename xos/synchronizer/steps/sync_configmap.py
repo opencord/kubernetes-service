@@ -80,7 +80,15 @@ class SyncKubernetesConfigMap(SyncStep):
                 o.backend_handle = config_map.metadata.self_link
                 o.save(update_fields=["backend_handle"])
 
-    def delete_record(self, port):
-        # TODO(smbaker): Implement delete step
-        pass
+    def delete_record(self, o):
+        config_map = self.get_config_map(o)
+        if not config_map:
+            log.info("Kubernetes config map does not exist; Nothing to delete.", o=o)
+            return
+        delete_options = self.kubernetes_client.V1DeleteOptions()
+        self.v1core.delete_namespaced_config_map(o.name, o.trust_domain.name, delete_options)
+        log.info("Deleted configmap from kubernetes", handle=o.backend_handle)
+
+
+
 

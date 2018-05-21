@@ -95,5 +95,18 @@ class TestSyncKubernetesServiceInstance(unittest.TestCase):
             step.v1core.create_namespaced_pod.assert_called()
             self.assertEqual(xos_si.backend_handle, "1234")
 
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            xos_si = KubernetesServiceInstance(name="test-instance", slice=self.slice, image=self.image)
+            xos_si.kubernetes_config_volume_mounts = self.MockObjectList([])
+            xos_si.kubernetes_secret_volume_mounts = self.MockObjectList([])
+
+            step = self.step_class()
+            pod = MagicMock()
+            step.v1core.read_namespaced_pod.return_value = pod
+
+            step.delete_record(xos_si)
+            step.v1core.delete_namespaced_pod.assert_called_with("test-instance", self.trust_domain.name, ANY)
+
 if __name__ == '__main__':
     unittest.main()

@@ -87,5 +87,17 @@ class TestSyncTrustDomain(unittest.TestCase):
             step.v1core.create_namespace.assert_called()
             self.assertEqual(xos_trustdomain.backend_handle, "1234")
 
+    def test_delete_record(self):
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            xos_trustdomain = TrustDomain(name="test-trust")
+
+            step = self.step_class()
+            td = MagicMock()
+            step.v1core.read_namespace.return_value = td
+
+            step.delete_record(xos_trustdomain)
+
+            step.v1core.delete_namespace.assert_called_with("test-trust", ANY)
+
 if __name__ == '__main__':
     unittest.main()
