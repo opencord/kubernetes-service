@@ -1,0 +1,33 @@
+--- api_client.py       2018-05-29 17:59:49.000000000 +0000
++++ api_client.py.new   2018-05-29 17:56:27.000000000 +0000
+@@ -64,7 +64,7 @@
+             configuration = Configuration()
+         self.configuration = configuration
+ 
+-        self.pool = ThreadPool()
++        self.pool = None # NOTE(smbaker): disabled threadpool 
+         self.rest_client = RESTClientObject(configuration)
+         self.default_headers = {}
+         if header_name is not None:
+@@ -73,9 +73,10 @@
+         # Set default User-Agent.
+         self.user_agent = 'Swagger-Codegen/6.0.0/python'
+     
+-    def __del__(self):
+-        self.pool.close()
+-        self.pool.join()
++# NOTE(smbaker): disabled threadpool
++#    def __del__(self):
++#        self.pool.close()
++#        self.pool.join()
+ 
+     @property
+     def user_agent(self):
+@@ -320,6 +321,7 @@
+                                    response_type, auth_settings,
+                                    _return_http_data_only, collection_formats, _preload_content, _request_timeout)
+         else:
++            raise Exception("Async is not supported")  # NOTE(smbaker): disabled thread pool
+             thread = self.pool.apply_async(self.__call_api, (resource_path, method,
+                                            path_params, query_params,
+                                            header_params, body,
