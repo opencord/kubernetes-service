@@ -186,6 +186,7 @@ class KubernetesServiceInstancePullStep(PullStep):
                 name = container.image
                 tag = "master"
 
+            # FIXME image.name is unique, but tag may differ. Update validation in the Image model so that the combination of name and tag is unique
             existing_images = Image.objects.filter(name=name, tag=tag, kind="container")
             if not existing_images:
                 i = Image(name=name, tag=tag, kind="container", xos_managed=False)
