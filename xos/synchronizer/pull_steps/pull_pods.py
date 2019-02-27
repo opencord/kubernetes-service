@@ -40,8 +40,8 @@ class KubernetesServiceInstancePullStep(PullStep):
          as necessary to fill the required dependencies of the KubernetesServiceInstance.
     """
 
-    def __init__(self):
-        super(KubernetesServiceInstancePullStep, self).__init__(observed_model=KubernetesServiceInstance)
+    def __init__(self, *args, **kwargs):
+        super(KubernetesServiceInstancePullStep, self).__init__(*args, observed_model=KubernetesServiceInstance, **kwargs)
 
         self.init_kubernetes_client()
 

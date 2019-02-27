@@ -15,7 +15,7 @@
 # docker build -t xosproject/kubernetes-synchronizer:candidate -f Dockerfile.synchronizer .
 
 # xosproject/kubernetes-synchronizer
-FROM xosproject/xos-synchronizer-base:2.2.1
+FROM xosproject/xos-synchronizer-base:2.2.2
 
 COPY xos/synchronizer /opt/xos/synchronizers/kubernetes
 COPY VERSION /opt/xos/synchronizers/kubernetes/
@@ -25,7 +25,7 @@ RUN pip install --no-deps -r /tmp/pip_requirements_kubernetes_service.txt \
  && pip freeze > /var/xos/pip_freeze_pip_up_kubernetes_services_`date -u +%Y%m%dT%H%M%S`
 
 # Workaround for kubernetes library issue, see CORD-3054
-RUN echo "c82c439bda07f29fd36f23552c4e763f  /usr/local/lib/python2.7/dist-packages/kubernetes/client/api_client.py" | md5sum -c -
+RUN echo "7ef7f85c6da121fd96c0ba4a22517169  /usr/local/lib/python2.7/dist-packages/kubernetes/client/api_client.py" | md5sum -c -
 COPY api_client.patch /tmp/api_client.patch
 RUN patch -d /usr/local/lib/python2.7/dist-packages/kubernetes/client < /tmp/api_client.patch
 
