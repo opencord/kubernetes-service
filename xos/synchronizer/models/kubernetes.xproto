@@ -32,7 +32,6 @@ message KubernetesServiceInstance (ComputeServiceInstance){
          max_length=32,
          null = True];
      required bool need_event = 2 [
-         blank = True,
          help_text = "True if a kafka event needs to be sent by the pull step",
          default = False];
      optional string last_event_sent = 3 [
@@ -47,22 +46,16 @@ message KubernetesServiceInstance (ComputeServiceInstance){
 message KubernetesData (XOSBase) {
     option description = "Base class for Kubernetes ConfigMaps, Secrets, and similar models";
 
-    optional string name = 1 [
+    required string name = 1 [
         help_text = "Name of this data store",
-        blank = False,
         db_index = False,
-        max_length=256,
-        null = False];
+        max_length=256];
     optional string data = 2 [
         help_text = "Set of key,value pairs encoded as a json dictionary",
-        blank = True,
-        db_index = False,
-        null = True];
+        db_index = False];
     required manytoone trust_domain->TrustDomain:kubernetes_configmaps = 3:1003 [
         help_text = "Trust domain this data resides in",
-        blank = False,
-        db_index = True,
-        null = False];
+        db_index = True];
 }
 
 message KubernetesConfigMap (KubernetesData) {
@@ -86,18 +79,14 @@ message KubernetesSecretVolumeMount (XOSBase) {
         blank = False,
         db_index = True,
         null = False];
-    optional string mount_path = 3 [
+    required string mount_path = 3 [
         help_text = "Path to mount secret",
-        blank = False,
         db_index = False,
-        max_length=256,
-        null = False];
+        max_length=1024];
     optional string sub_path = 4 [
         help_text = "Subpath within secret to mount",
-        blank = True,
         db_index = False,
-        max_length=1024,
-        null = True];
+        max_length=1024];
 }
 
 message KubernetesConfigVolumeMount (XOSBase) {
@@ -113,17 +102,13 @@ message KubernetesConfigVolumeMount (XOSBase) {
         blank = False,
         db_index = True,
         null = False];
-    optional string mount_path = 3 [
+    required string mount_path = 3 [
         help_text = "Path to mount secret",
-        blank = False,
         db_index = False,
-        max_length=1024,
-        null = False];
+        max_length=1024];
     optional string sub_path = 4 [
         help_text = "Subpath within secret to mount",
-        blank = True,
         db_index = False,
-        max_length=1024,
-        null = True];
+        max_length=1024];
 }
 
