@@ -1,0 +1,5 @@
+kubernetes~=8.0.1
+xossynchronizer~=3.0.1
+xosapi~=3.0.1
+xoskafka~=3.0.1
+kafkaloghandler~=0.9.0

@@ -12,25 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -t xosproject/kubernetes-synchronizer:candidate -f Dockerfile.synchronizer .
-
 # xosproject/kubernetes-synchronizer
-FROM xosproject/xos-synchronizer-base:2.2.18
+FROM xosproject/alpine-grpc-base:0.9.0
 
+# Install curl (to download kubectl later)
+RUN apk add --no-cache curl
+
+# Install pip packages
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt \
+ && pip freeze > /var/xos/pip_freeze_kubernetes_service_`date -u +%Y%m%dT%H%M%S`
+
+# Copy code
 COPY xos/synchronizer /opt/xos/synchronizers/kubernetes
 COPY VERSION /opt/xos/synchronizers/kubernetes/
 
-COPY pip_requirements.txt /tmp/pip_requirements_kubernetes_service.txt
-RUN pip install --no-deps -r /tmp/pip_requirements_kubernetes_service.txt \
- && pip freeze > /var/xos/pip_freeze_pip_up_kubernetes_services_`date -u +%Y%m%dT%H%M%S`
-
-# Workaround for kubernetes library issue, see CORD-3054
-RUN echo "7ef7f85c6da121fd96c0ba4a22517169  /usr/local/lib/python2.7/dist-packages/kubernetes/client/api_client.py" | md5sum -c -
-COPY api_client.patch /tmp/api_client.patch
-RUN patch -d /usr/local/lib/python2.7/dist-packages/kubernetes/client < /tmp/api_client.patch
-
-ENV KUBECTL_VERSION "1.10.5"
-ENV KUBECTL_SHA256SUM "a9e7f82e516aa8a652bc485620483ea964eb940787cabf890d7eab96eaac294d"
+# Install kubectl
+ENV KUBECTL_VERSION "1.12.6"
+ENV KUBECTL_SHA256SUM "ff94e3024dd245bf8761fac1b244776b169ade056daec2e1ccaf9b65f1d646ca"
 RUN curl -L -o /tmp/kubectl "https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
   && echo "$KUBECTL_SHA256SUM  /tmp/kubectl" | sha256sum -c - \
   && mv /tmp/kubectl /usr/local/bin/kubectl \
@@ -40,32 +39,18 @@ RUN curl -L -o /tmp/kubectl "https://storage.googleapis.com/kubernetes-release/r
 WORKDIR "/opt/xos/synchronizers/kubernetes"
 
 # Label image
-ARG org_label_schema_schema_version=1.0
-ARG org_label_schema_name=kubernetes-synchronizer
 ARG org_label_schema_version=unknown
 ARG org_label_schema_vcs_url=unknown
 ARG org_label_schema_vcs_ref=unknown
 ARG org_label_schema_build_date=unknown
 ARG org_opencord_vcs_commit_date=unknown
-ARG org_opencord_component_chameleon_version=unknown
-ARG org_opencord_component_chameleon_vcs_url=unknown
-ARG org_opencord_component_chameleon_vcs_ref=unknown
-ARG org_opencord_component_xos_version=unknown
-ARG org_opencord_component_xos_vcs_url=unknown
-ARG org_opencord_component_xos_vcs_ref=unknown
 
-LABEL org.label-schema.schema-version=$org_label_schema_schema_version \
-      org.label-schema.name=$org_label_schema_name \
+LABEL org.label-schema.schema-version=1.0 \
+      org.label-schema.name=kubernetes-synchronizer \
       org.label-schema.version=$org_label_schema_version \
       org.label-schema.vcs-url=$org_label_schema_vcs_url \
       org.label-schema.vcs-ref=$org_label_schema_vcs_ref \
       org.label-schema.build-date=$org_label_schema_build_date \
-      org.opencord.vcs-commit-date=$org_opencord_vcs_commit_date \
-      org.opencord.component.chameleon.version=$org_opencord_component_chameleon_version \
-      org.opencord.component.chameleon.vcs-url=$org_opencord_component_chameleon_vcs_url \
-      org.opencord.component.chameleon.vcs-ref=$org_opencord_component_chameleon_vcs_ref \
-      org.opencord.component.xos.version=$org_opencord_component_xos_version \
-      org.opencord.component.xos.vcs-url=$org_opencord_component_xos_vcs_url \
-      org.opencord.component.xos.vcs-ref=$org_opencord_component_xos_vcs_ref
+      org.opencord.vcs-commit-date=$org_opencord_vcs_commit_date
 
 CMD ["/usr/bin/python", "/opt/xos/synchronizers/kubernetes/kubernetes-synchronizer.py"]
