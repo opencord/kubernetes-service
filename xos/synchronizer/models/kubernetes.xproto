@@ -16,7 +16,6 @@ message KubernetesResourceInstance (ServiceInstance){
      optional string kubectl_state = 4 [
          help_text = "Most recent kubectl action completed by synchronizer",
          choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
-         db_index = False,
          feedback_state = True,
          max_length = 32];
 }
@@ -27,20 +26,14 @@ message KubernetesServiceInstance (ComputeServiceInstance){
 
      optional string pod_ip = 1 [
          help_text = "IP address of pod",
-         blank = True,
-         db_index = False,
-         max_length=32,
-         null = True];
+         max_length=32];
      required bool need_event = 2 [
          help_text = "True if a kafka event needs to be sent by the pull step",
          default = False];
      optional string last_event_sent = 3 [
          help_text = "Type of last event sent",
-         blank = True,
          choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
-         db_index = False,
-         max_length=32,
-         null = True];
+         max_length=32];
 }
 
 message KubernetesData (XOSBase) {
@@ -48,11 +41,9 @@ message KubernetesData (XOSBase) {
 
     required string name = 1 [
         help_text = "Name of this data store",
-        db_index = False,
         max_length=256];
     optional string data = 2 [
-        help_text = "Set of key,value pairs encoded as a json dictionary",
-        db_index = False];
+        help_text = "Set of key,value pairs encoded as a json dictionary"];
     required manytoone trust_domain->TrustDomain:kubernetes_configmaps = 3:1003 [
         help_text = "Trust domain this data resides in",
         db_index = True];
@@ -71,21 +62,15 @@ message KubernetesSecretVolumeMount (XOSBase) {
 
     required manytoone secret->KubernetesSecret:kubernetes_secret_volume_mounts = 1:1001 [
         help_text = "Secret to mount",
-        blank = False,
-        db_index = True,
-        null = False];
+        db_index = True];
     required manytoone service_instance->KubernetesServiceInstance:kubernetes_secret_volume_mounts = 2 [
         help_text = "Service instance in which to mount secret",
-        blank = False,
-        db_index = True,
-        null = False];
+        db_index = True];
     required string mount_path = 3 [
         help_text = "Path to mount secret",
-        db_index = False,
         max_length=1024];
     optional string sub_path = 4 [
         help_text = "Subpath within secret to mount",
-        db_index = False,
         max_length=1024];
 }
 
@@ -94,21 +79,15 @@ message KubernetesConfigVolumeMount (XOSBase) {
 
     required manytoone config->KubernetesConfigMap:kubernetes_config_voume_mounts = 1:1001 [
         help_text = "Config to mount",
-        blank = False,
-        db_index = True,
-        null = False];
+        db_index = True];
     required manytoone service_instance->KubernetesServiceInstance:kubernetes_config_volume_mounts = 2:1001 [
         help_text = "Service instance in which to mount config",
-        blank = False,
-        db_index = True,
-        null = False];
+        db_index = True];
     required string mount_path = 3 [
         help_text = "Path to mount secret",
-        db_index = False,
         max_length=1024];
     optional string sub_path = 4 [
         help_text = "Subpath within secret to mount",
-        db_index = False,
         max_length=1024];
 }
 
