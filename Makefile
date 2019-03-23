@@ -18,13 +18,14 @@ SHELL = bash -e -o pipefail
 # Variables
 VERSION                  ?= $(shell cat ./VERSION)
 SERVICE_NAME             ?= $(notdir $(abspath .))
+SYNCHRONIZER_NAME        ?= kubernetes-synchronizer
 
 ## Docker related
 DOCKER_REGISTRY          ?=
 DOCKER_REPOSITORY        ?=
 DOCKER_BUILD_ARGS        ?=
 DOCKER_TAG               ?= ${VERSION}
-DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${SERVICE_NAME}:${DOCKER_TAG}
+DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${SYNCHRONIZER_NAME}:${DOCKER_TAG}
 
 ## Docker labels. Only set ref and commit date if committed
 DOCKER_LABEL_VCS_URL     ?= $(shell git remote get-url $(shell git remote))
