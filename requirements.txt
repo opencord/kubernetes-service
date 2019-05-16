@@ -1,4 +1,4 @@
-kubernetes~=8.0.1
+kubernetes~=9.0.0
 xossynchronizer~=3.0.1
 xosapi~=3.0.1
 xoskafka~=3.0.1
