@@ -45,10 +45,11 @@ class SyncK8Service(SyncStep):
         res = self.api_instance.get_code()
         major = res.major
         minor = res.minor
+        log.debug("[K8Service SyncStep] API response", res=res)
         log.info("[K8Service SyncStep] API Code", major=major, minor=minor,
                  expected_major=self.expected_major, expected_minor=self.expected_minor)
 
-        if major != int(self.expected_major) or minor > int(self.expected_minor):
+        if int(major) != int(self.expected_major) or int(minor) > int(self.expected_minor):
             raise Exception("Kubernetes cluster of version %s is not supported by the kubernetes-services" % res.git_version+
                             "the maximum supported version is %s" % self.max_version)
 

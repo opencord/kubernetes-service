@@ -52,6 +52,20 @@ class TestSyncKubernetesServiceInstance(unittest.TestCase):
     def test_valid_version(self):
 
         version = MagicMock()
+        version.major = '1'
+        version.minor = '13'
+        version.git_version = "v1.13.0"
+
+        with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
+            step = self.step_class(model_accessor=self.model_accessor)
+
+            step.api_instance.get_code.return_value = version
+
+            step.sync_record(self.service)
+
+    def test_valid_version_int(self):
+
+        version = MagicMock()
         version.major = 1
         version.minor = 13
         version.git_version = "v1.13.0"
