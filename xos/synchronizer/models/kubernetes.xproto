@@ -7,33 +7,35 @@ message KubernetesService (Service){
 }
 
 message KubernetesResourceInstance (ServiceInstance){
-     option verbose_name = "Kubernetes Resource Instance";
-     option description = "An opaque-to-xos blob of yaml that is passed directly to kubectl";
+    option verbose_name = "Kubernetes Resource Instance";
+    option description = "An opaque-to-xos blob of yaml that is passed directly to kubectl";
+    option sync_implemented = "True";
 
-     optional string resource_definition = 3 [
-         help_text = "yaml containing kubernetes resources",
-         max_length = 65535];
-     optional string kubectl_state = 4 [
-         help_text = "Most recent kubectl action completed by synchronizer",
-         choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
-         feedback_state = True,
-         max_length = 32];
+    optional string resource_definition = 3 [
+        help_text = "yaml containing kubernetes resources",
+        max_length = 65535];
+    optional string kubectl_state = 4 [
+        help_text = "Most recent kubectl action completed by synchronizer",
+        choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
+        feedback_state = True,
+        max_length = 32];
 }
 
 message KubernetesServiceInstance (ComputeServiceInstance){
-     option verbose_name = "Kubernetes Service Instance";
-     option description = "A ComputeServiceInstance in kubernetes, usually in the form of a pod";
+    option verbose_name = "Kubernetes Service Instance";
+    option description = "A ComputeServiceInstance in kubernetes, usually in the form of a pod";
+    option sync_implemented = "True";
 
-     optional string pod_ip = 1 [
-         help_text = "IP address of pod",
-         max_length=32];
-     required bool need_event = 2 [
-         help_text = "True if a kafka event needs to be sent by the pull step",
-         default = False];
-     optional string last_event_sent = 3 [
-         help_text = "Type of last event sent",
-         choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
-         max_length=32];
+    optional string pod_ip = 1 [
+        help_text = "IP address of pod",
+        max_length=32];
+    required bool need_event = 2 [
+        help_text = "True if a kafka event needs to be sent by the pull step",
+        default = False];
+    optional string last_event_sent = 3 [
+        help_text = "Type of last event sent",
+        choices = "(('created', 'CREATED'), ('updated', 'UPDATED'), ('deleted', 'DELETED'))",
+        max_length=32];
 }
 
 message KubernetesData (XOSBase) {
@@ -52,6 +54,7 @@ message KubernetesData (XOSBase) {
 
 message KubernetesConfigMap (KubernetesData) {
     option description = "A Kubernetes ConfigMap, holding (name, value) data in insecure manner";
+    option sync_implemented = "True";
 }
 
 message KubernetesSecret (KubernetesData) {
