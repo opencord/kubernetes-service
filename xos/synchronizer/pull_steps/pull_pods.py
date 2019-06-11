@@ -27,6 +27,7 @@ from xossynchronizer.modelaccessor import KubernetesServiceInstance, KubernetesS
 from xosconfig import Config
 from multistructlog import create_logger
 from xoskafka import XOSKafkaProducer
+from helpers import debug_once
 
 log = create_logger(Config().get('logging'))
 
@@ -74,7 +75,7 @@ class KubernetesServiceInstancePullStep(PullStep):
             resource = None
         return resource
 
-    def get_controller_from_obj(self, obj, trust_domain, depth=0):
+    def get_controller_from_obj(self, pod_name, obj, trust_domain, depth=0):
         """ Given an object, Search for its controller. Strategy is to walk backward until we find some object that
             is marked as a controller, but does not have any owners.
 
@@ -96,19 +97,19 @@ class KubernetesServiceInstancePullStep(PullStep):
             if not owner:
                 # Failed to fetch the owner, probably because the owner's kind is something we do not understand. An
                 # example is the etcd-cluser pod, which is owned by a deployment of kind "EtcdCluster".
-                log.debug("failed to fetch owner", owner_reference=owner_reference)
+                debug_once("Pod %s: Failed to fetch owner" % pod_name, owner_reference=owner_reference)
                 continue
-            controller = self.get_controller_from_obj(owner, trust_domain, depth+1)
+            controller = self.get_controller_from_obj(pod_name, owner, trust_domain, depth+1)
             if controller:
                 return controller
 
         return None
 
-    def get_slice_from_pod(self, pod, trust_domain, principal):
+    def get_slice_from_pod(self, pod_name, pod, trust_domain, principal):
         """ Given a pod, determine which XOS Slice goes with it
             If the Slice doesn't exist, create it.
         """
-        controller = self.get_controller_from_obj(pod, trust_domain)
+        controller = self.get_controller_from_obj(pod_name, pod, trust_domain)
         if not controller:
             return None
 
@@ -242,7 +243,7 @@ class KubernetesServiceInstancePullStep(PullStep):
         kubernetes_service = kubernetes_services[0]
 
         # For each k8s pod, see if there is an xos pod. If there is not, then create the xos pod.
-        for (k,pod) in k8s_pods_by_name.items():
+        for (k, pod) in k8s_pods_by_name.items():
             try:
                 if not k in xos_pods_by_name:
                     trust_domain = self.get_trustdomain_from_pod(pod, owner_service=kubernetes_service)
@@ -253,14 +254,14 @@ class KubernetesServiceInstancePullStep(PullStep):
                         continue
 
                     principal = self.get_principal_from_pod(pod, trust_domain)
-                    slice = self.get_slice_from_pod(pod, trust_domain=trust_domain, principal=principal)
+                    slice = self.get_slice_from_pod(k, pod, trust_domain=trust_domain, principal=principal)
                     image = self.get_image_from_pod(pod)
 
                     if not slice:
                         # We could get here if the pod doesn't have a controller, or if the controller is of a kind
                         # that we don't understand (such as the Etcd controller). If so, the pod is not something we
                         # are interested in.
-                        log.debug("Unable to determine slice for pod %s. Ignoring." % k)
+                        debug_once("Pod %s: Unable to determine slice. Ignoring." % k)
                         continue
 
                     xos_pod = KubernetesServiceInstance(name=k,

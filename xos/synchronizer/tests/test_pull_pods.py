@@ -96,7 +96,7 @@ class TestPullPods(unittest.TestCase):
             pull_step.v1apps.read_namespaced_stateful_set.return_value = ss_obj
             pull_step.v1apps.read_namespaced_deployment.return_value = dep_obj
 
-            controller = pull_step.get_controller_from_obj(leaf_obj, self.trust_domain)
+            controller = pull_step.get_controller_from_obj("mypod", leaf_obj, self.trust_domain)
             self.assertEqual(controller, dep_obj)
 
     def test_get_slice_from_pod_exists(self):
@@ -115,7 +115,7 @@ class TestPullPods(unittest.TestCase):
 
             pod = MagicMock()
 
-            slice = pull_step.get_slice_from_pod(pod, self.trust_domain, self.principal)
+            slice = pull_step.get_slice_from_pod("mypod", pod, self.trust_domain, self.principal)
             self.assertEqual(slice, myslice)
 
     def test_get_slice_from_pod_noexist(self):
@@ -135,7 +135,7 @@ class TestPullPods(unittest.TestCase):
 
             pod = MagicMock()
 
-            slice = pull_step.get_slice_from_pod(pod, self.trust_domain, self.principal)
+            slice = pull_step.get_slice_from_pod("mypod", pod, self.trust_domain, self.principal)
             self.assertEqual(slice.name, "my_other_slice")
             self.assertEqual(slice.trust_domain, self.trust_domain)
             self.assertEqual(slice.principal, self.principal)
