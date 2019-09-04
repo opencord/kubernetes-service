@@ -25,7 +25,7 @@ class SyncK8Service(SyncStep):
     provides = [KubernetesService]
     observes = KubernetesService
 
-    max_version = "1.14"
+    max_version = "1.15"
     [expected_major, expected_minor] = max_version.split(".")
 
     def __init__(self, *args, **kwargs):

@@ -81,8 +81,8 @@ class TestSyncKubernetesServiceInstance(unittest.TestCase):
 
         version = MagicMock()
         version.major = 1
-        version.minor = 15
-        version.git_version = "v1.15.0"
+        version.minor = 16
+        version.git_version = "v1.16.0"
 
         with patch.object(self.step_class, "init_kubernetes_client", new=fake_init_kubernetes_client):
             step = self.step_class(model_accessor=self.model_accessor)
